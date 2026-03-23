@@ -4,14 +4,15 @@ import axios from 'axios';
 // ─── Config ───────────────────────────────────────────────────────────────────
 
 const FACTORY_ADDRESS = '0xFD15c0c277150Da16323a799226534176F7f91D3';
-const WS_RPC          = process.env.WS_RPC    || 'wss://rpc.pulsechain.com';
+const HTTP_RPC        = process.env.HTTP_RPC  || 'https://rpc.pulsechain.com';
 const TG_TOKEN        = process.env.TG_TOKEN;
 const TG_CHAT_ID      = process.env.TG_CHAT_ID;
 const EXPLORER        = 'https://ipfs.scan.pulsechain.com';
 const APP_URL         = 'https://scadaoptions.com/options';
+const POLL_MS         = 12_000; // poll every 12s (~1 PulseChain block)
 
-const MIN_CALL_SCADA  = ethers.parseEther('50');    // 50,000 SCADA
-const MIN_PUT_PLS     = ethers.parseEther('50');  // 5,000,000 PLS
+const MIN_CALL_SCADA  = ethers.parseEther('50000');   // 50,000 SCADA
+const MIN_PUT_PLS     = ethers.parseEther('5000000'); // 5,000,000 PLS
 
 // ─── ABIs ─────────────────────────────────────────────────────────────────────
 
@@ -148,7 +149,6 @@ async function onOptionPurchased(optionAddr, issuer, buyer, provider) {
   const { optionType, amount, strikePrice, premium, expiry } = details;
   const isCall = Number(optionType) === 0;
 
-  // Apply same size filters
   if (isCall && amount < MIN_CALL_SCADA) return;
   if (!isCall) {
     const collateral = amount * strikePrice / ethers.parseEther('1');
@@ -177,54 +177,60 @@ async function onOptionPurchased(optionAddr, issuer, buyer, provider) {
   await send(msg);
 }
 
-// ─── Connection & reconnect ───────────────────────────────────────────────────
+// ─── Polling loop ─────────────────────────────────────────────────────────────
 
-async function connect() {
-  console.log('Connecting to PulseChain...');
+async function startPolling() {
   let provider;
 
-  try {
-    provider = new ethers.WebSocketProvider(WS_RPC);
-    await provider.ready;
+  const getProvider = () => {
+    if (!provider) {
+      provider = new ethers.JsonRpcProvider(HTTP_RPC);
+      provider.pollingInterval = POLL_MS;
+    }
+    return provider;
+  };
 
-    const factory = new ethers.Contract(FACTORY_ADDRESS, FACTORY_ABI, provider);
+  const factory = new ethers.Contract(FACTORY_ADDRESS, FACTORY_ABI, getProvider());
 
+  const attach = () => {
     factory.on('CallCreated', (option, issuer, amount, strikePrice, premium, expiry) =>
-      onCallCreated(option, issuer, amount, strikePrice, premium, expiry, provider).catch(console.error)
+      onCallCreated(option, issuer, amount, strikePrice, premium, expiry, getProvider()).catch(console.error)
     );
     factory.on('PutCreated', (option, issuer, amount, strikePrice, premium, expiry) =>
-      onPutCreated(option, issuer, amount, strikePrice, premium, expiry, provider).catch(console.error)
+      onPutCreated(option, issuer, amount, strikePrice, premium, expiry, getProvider()).catch(console.error)
     );
     factory.on('OptionPurchased', (option, issuer, buyer) =>
-      onOptionPurchased(option, issuer, buyer, provider).catch(console.error)
+      onOptionPurchased(option, issuer, buyer, getProvider()).catch(console.error)
     );
+    console.log('✅ Polling for events on factory', FACTORY_ADDRESS);
+  };
 
-    console.log('✅ Listening for events on factory', FACTORY_ADDRESS);
+  // Verify RPC is reachable before attaching listeners
+  const tryConnect = async () => {
+    try {
+      await getProvider().getBlockNumber();
+      attach();
+    } catch (err) {
+      console.error('RPC unreachable, retrying in 15s...', err.message);
+      provider = null;
+      setTimeout(tryConnect, 15_000);
+    }
+  };
 
-    // Keepalive — detect stale WS connections
-    const keepAlive = setInterval(async () => {
-      try {
-        await provider.getBlockNumber();
-      } catch {
-        console.warn('Keepalive failed — reconnecting...');
-        clearInterval(keepAlive);
-        provider.destroy();
-        setTimeout(connect, 5000);
-      }
-    }, 30_000);
+  // Periodic health check — recreate provider if RPC goes silent
+  setInterval(async () => {
+    try {
+      await getProvider().getBlockNumber();
+    } catch {
+      console.warn('RPC health check failed — resetting provider...');
+      try { factory.removeAllListeners(); } catch {}
+      provider = null;
+      factory.connect(getProvider());
+      attach();
+    }
+  }, 60_000);
 
-    provider.on('error', (err) => {
-      console.error('Provider error:', err.message);
-      clearInterval(keepAlive);
-      provider.destroy();
-      setTimeout(connect, 5000);
-    });
-
-  } catch (err) {
-    console.error('Connection failed:', err.message);
-    if (provider) provider.destroy();
-    setTimeout(connect, 10_000);
-  }
+  await tryConnect();
 }
 
-connect();
+startPolling();
