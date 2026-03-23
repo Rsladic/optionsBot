@@ -10,8 +10,8 @@ const TG_CHAT_ID      = process.env.TG_CHAT_ID;
 const EXPLORER        = 'https://ipfs.scan.pulsechain.com';
 const APP_URL         = 'https://scadaoptions.com/options';
 
-const MIN_CALL_SCADA  = ethers.parseEther('50000');    // 50,000 SCADA
-const MIN_PUT_PLS     = ethers.parseEther('5000000');  // 5,000,000 PLS
+const MIN_CALL_SCADA  = ethers.parseEther('50');    // 50,000 SCADA
+const MIN_PUT_PLS     = ethers.parseEther('50');  // 5,000,000 PLS
 
 // ─── ABIs ─────────────────────────────────────────────────────────────────────
 
