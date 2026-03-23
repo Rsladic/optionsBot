@@ -181,6 +181,7 @@ async function onOptionPurchased(optionAddr, issuer, buyer, provider) {
 
 async function startPolling() {
   let provider;
+  let factory;
 
   const getProvider = () => {
     if (!provider) {
@@ -190,9 +191,8 @@ async function startPolling() {
     return provider;
   };
 
-  const factory = new ethers.Contract(FACTORY_ADDRESS, FACTORY_ABI, getProvider());
-
   const attach = () => {
+    factory = new ethers.Contract(FACTORY_ADDRESS, FACTORY_ABI, getProvider());
     factory.on('CallCreated', (option, issuer, amount, strikePrice, premium, expiry) =>
       onCallCreated(option, issuer, amount, strikePrice, premium, expiry, getProvider()).catch(console.error)
     );
@@ -217,15 +217,14 @@ async function startPolling() {
     }
   };
 
-  // Periodic health check — recreate provider if RPC goes silent
+  // Periodic health check — recreate provider and factory if RPC goes silent
   setInterval(async () => {
     try {
       await getProvider().getBlockNumber();
     } catch {
       console.warn('RPC health check failed — resetting provider...');
-      try { factory.removeAllListeners(); } catch {}
+      try { factory?.removeAllListeners(); } catch {}
       provider = null;
-      factory.connect(getProvider());
       attach();
     }
   }, 60_000);
