@@ -8,7 +8,7 @@ const HTTP_RPC        = process.env.HTTP_RPC  || 'https://rpc.pulsechain.com';
 const TG_TOKEN        = process.env.TG_TOKEN;
 const TG_CHAT_ID      = process.env.TG_CHAT_ID;
 const EXPLORER        = 'https://ipfs.scan.pulsechain.com';
-const APP_URL         = 'https://scadaoptions.com/options';
+const APP_URL         = 'https://goscada.com/options';
 const POLL_MS         = 12_000; // poll every 12s (~1 PulseChain block)
 
 const MIN_CALL_SCADA  = ethers.parseEther('10000');
