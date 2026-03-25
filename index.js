@@ -3,7 +3,7 @@ import axios from 'axios';
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
-const FACTORY_ADDRESS = '0xFD15c0c277150Da16323a799226534176F7f91D3';
+const FACTORY_ADDRESS = '0x4d5719D5dAba3815C0e318c63cD9Ad9F1BF5c233';
 const HTTP_RPC        = process.env.HTTP_RPC  || 'https://rpc.pulsechain.com';
 const TG_TOKEN        = process.env.TG_TOKEN;
 const TG_CHAT_ID      = process.env.TG_CHAT_ID;
