@@ -11,8 +11,8 @@ const EXPLORER        = 'https://ipfs.scan.pulsechain.com';
 const APP_URL         = 'https://scadaoptions.com/options';
 const POLL_MS         = 12_000; // poll every 12s (~1 PulseChain block)
 
-const MIN_CALL_SCADA  = ethers.parseEther('5');   // 50,000 SCADA
-const MIN_PUT_PLS     = ethers.parseEther('5'); // 5,000,000 PLS
+const MIN_CALL_SCADA  = ethers.parseEther('10000');
+const MIN_PUT_PLS     = ethers.parseEther('150000');
 
 // ─── ABIs ─────────────────────────────────────────────────────────────────────
 
